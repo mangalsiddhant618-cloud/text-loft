@@ -5,6 +5,8 @@ import { useEffect, useState, useRef } from 'react'
 export default function InterestForm() {
   const [isVisible, setIsVisible] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -35,13 +37,32 @@ export default function InterestForm() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitted(true)
-    setTimeout(() => {
+    setIsLoading(true)
+    setErrorMessage('')
+
+    try {
+      const response = await fetch('/api/zoho', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data?.error || 'Failed to submit the form. Please try again.')
+      }
+
+      setIsSubmitted(true)
       setFormData({ name: '', phone: '', email: '', preferredTime: 'morning' })
-      setIsSubmitted(false)
-    }, 3000)
+    } catch (error) {
+      setErrorMessage((error as Error).message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -134,12 +155,17 @@ export default function InterestForm() {
               </select>
             </div>
 
+            {errorMessage ? (
+              <p className="text-center text-sm text-red-600">{errorMessage}</p>
+            ) : null}
+
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-4 bg-[#C9A96E] text-[#1A1A1A] font-montserrat uppercase tracking-wide hover:bg-[#BFA06A] transition-all duration-300"
+              disabled={isLoading}
+              className="w-full py-4 bg-[#C9A96E] text-[#1A1A1A] font-montserrat uppercase tracking-wide hover:bg-[#BFA06A] transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Request a Callback
+              {isLoading ? 'Sending...' : 'Request a Callback'}
             </button>
 
             {/* Reassurance Text */}

@@ -4,11 +4,10 @@ const ZOHO_REFRESH_TOKEN = process.env.ZOHO_REFRESH_TOKEN
 const ZOHO_OAUTH_DOMAIN = process.env.ZOHO_OAUTH_DOMAIN ?? 'https://accounts.zoho.com'
 const ZOHO_API_DOMAIN = process.env.ZOHO_API_DOMAIN ?? 'https://www.zohoapis.com'
 
-if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
-  throw new Error('Zoho credentials are required in environment variables.')
-}
-
 async function getAccessToken() {
+  if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
+    throw new Error('Zoho credentials are required in environment variables.')
+  }
   const tokenUrl = `${ZOHO_OAUTH_DOMAIN}/oauth/v2/token?refresh_token=${encodeURIComponent(
     ZOHO_REFRESH_TOKEN
   )}&client_id=${encodeURIComponent(ZOHO_CLIENT_ID)}&client_secret=${encodeURIComponent(
