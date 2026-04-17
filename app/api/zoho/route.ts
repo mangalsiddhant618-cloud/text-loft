@@ -1,13 +1,32 @@
 const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID
 const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET
 const ZOHO_REFRESH_TOKEN = process.env.ZOHO_REFRESH_TOKEN
+const ZOHO_ACCESS_TOKEN = process.env.ZOHO_ACCESS_TOKEN
 const ZOHO_OAUTH_DOMAIN = process.env.ZOHO_OAUTH_DOMAIN ?? 'https://accounts.zoho.com'
 const ZOHO_API_DOMAIN = process.env.ZOHO_API_DOMAIN ?? 'https://www.zohoapis.com'
+const ZOHO_LEAD_SOURCE = process.env.ZOHO_LEAD_SOURCE ?? 'Website Inquiry'
+const ZOHO_LEAD_COMPANY = process.env.ZOHO_LEAD_COMPANY ?? 'Website Lead'
+
+export const runtime = 'nodejs'
+
+type ZohoFormData = {
+  name: string
+  email: string
+  phone: string
+  preferredTime?: string
+}
 
 async function getAccessToken() {
-  if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
-    throw new Error('Zoho credentials are required in environment variables.')
+  if (ZOHO_ACCESS_TOKEN) {
+    return ZOHO_ACCESS_TOKEN
   }
+
+  if (!ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET || !ZOHO_REFRESH_TOKEN) {
+    throw new Error(
+      'Zoho credentials are required in environment variables. Provide ZOHO_ACCESS_TOKEN, or ZOHO_CLIENT_ID + ZOHO_CLIENT_SECRET + ZOHO_REFRESH_TOKEN.'
+    )
+  }
+
   const tokenUrl = `${ZOHO_OAUTH_DOMAIN}/oauth/v2/token?refresh_token=${encodeURIComponent(
     ZOHO_REFRESH_TOKEN
   )}&client_id=${encodeURIComponent(ZOHO_CLIENT_ID)}&client_secret=${encodeURIComponent(
@@ -31,21 +50,16 @@ async function getAccessToken() {
   return data.access_token as string
 }
 
-async function createZohoLead(accessToken: string, formData: {
-  name: string
-  email: string
-  phone: string
-  preferredTime: string
-}) {
+async function createZohoLead(accessToken: string, formData: ZohoFormData) {
   const leadPayload = {
     data: [
       {
-        Company: 'Website Lead',
+        Company: ZOHO_LEAD_COMPANY,
         Last_Name: formData.name || 'Unknown',
         Email: formData.email,
         Phone: formData.phone,
-        Description: `Preferred contact time: ${formData.preferredTime}`,
-        Lead_Source: 'Website Inquiry',
+        Description: `Preferred contact time: ${formData.preferredTime || 'Anytime'}`,
+        Lead_Source: ZOHO_LEAD_SOURCE,
       },
     ],
     trigger: ['approval', 'workflow'],
@@ -62,24 +76,47 @@ async function createZohoLead(accessToken: string, formData: {
 
   if (!response.ok) {
     const body = await response.text()
-    throw new Error(`Zoho lead creation failed: ${response.status} ${body}`)
+    let errorMessage = body
+    try {
+      const parsed = JSON.parse(body)
+      errorMessage = parsed?.message ?? JSON.stringify(parsed)
+    } catch {
+      // keep raw text
+    }
+    throw new Error(`Zoho lead creation failed: ${response.status} ${errorMessage}`)
   }
 
   return await response.json()
 }
 
 export async function POST(req: Request) {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed.' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  let body: ZohoFormData
   try {
-    const body = await req.json()
-    const { name, email, phone, preferredTime } = body
+    body = await req.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
-    if (!name || !email || !phone) {
-      return new Response(JSON.stringify({ error: 'Missing required fields.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
+  const { name, email, phone, preferredTime } = body
 
+  if (!name || !email || !phone) {
+    return new Response(JSON.stringify({ error: 'Missing required fields.' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  try {
     const accessToken = await getAccessToken()
     const result = await createZohoLead(accessToken, { name, email, phone, preferredTime })
 

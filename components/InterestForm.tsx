@@ -13,6 +13,7 @@ export default function InterestForm() {
     email: '',
     preferredTime: 'morning',
   })
+  const zohoEndpoint = process.env.NEXT_PUBLIC_ZOHO_API_URL ?? '/api/zoho'
   const ref = useRef(null)
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function InterestForm() {
     setErrorMessage('')
 
     try {
-      const response = await fetch('/api/zoho', {
+      const response = await fetch(zohoEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
