@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Experience premium luxury living at ASBL Loft, a G+45 residential project in Financial District, Gachibowli. 1,695 sq. ft. 3BHKs starting from ₹1.94 Cr.',
   generator: 'v0.app',
   icons: {
-    icon: [
+    icon: [ 
       {
         url: '/icon-light-32x32.png',
         media: '(prefers-color-scheme: light)',
